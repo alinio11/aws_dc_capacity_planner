@@ -1,0 +1,699 @@
+# AWS Direct Connect Capacity Planning Operational Runbook
+
+## Document Control
+- **Version**: 1.0
+- **Last Updated**: 2025-01-XX
+- **Document Owner**: Cloud Infrastructure Team
+- **Review Cycle**: Quarterly
+- **Approval Status**: Draft
+
+## 1.0 Purpose
+
+This operational runbook defines the comprehensive capacity planning methodology for AWS Direct Connect connections to ensure optimal performance, cost-effectiveness, and proactive scalability management. The runbook establishes monitoring parameters, threshold definitions, escalation procedures, and implementation guidelines to maintain service level agreements while preventing both over-provisioning and capacity constraints.
+
+## 2.0 Subject(s) and Scope
+
+### 2.1 Subject Matter
+- AWS Direct Connect dedicated and hosted connections
+- Virtual Interface (VIF) capacity management
+- Cross-region Direct Connect Gateway utilization
+- Hybrid network performance optimization
+
+### 2.2 Scope
+This runbook covers:
+- Physical connection monitoring (1Gbps to 400Gbps)
+- Virtual interface capacity planning
+- Multi-account Direct Connect scenarios
+- Redundancy and failover capacity considerations
+- Integration with AWS Transit Gateway and VPC connectivity
+
+### 2.3 Out of Scope
+- AWS Site-to-Site VPN capacity planning
+- Third-party network provider capacity management
+- On-premises router and switch optimization
+
+## 3.0 Capacity Planning Framework
+
+### 3.1 Strategic Objectives
+- **Performance**: Maintain sub-10ms latency for critical workloads
+- **Availability**: Ensure 99.9% uptime through proper capacity provisioning
+- **Cost Optimization**: Avoid over-provisioning while maintaining headroom
+- **Scalability**: Proactively plan for growth and traffic patterns
+
+### 3.2 Capacity Planning Methodology
+The capacity planning process follows a four-phase approach:
+
+**Phase 1: Baseline Establishment**
+- Collect 30-60 days of historical utilization data
+- Identify traffic patterns and peak usage periods
+- Establish application-specific requirements
+
+**Phase 2: Threshold Definition**
+- Apply industry-standard utilization thresholds
+- Account for burst traffic and redundancy requirements
+- Define monitoring intervals and alerting criteria
+
+**Phase 3: Forecasting and Analysis**
+- Project growth based on business requirements
+- Analyze seasonal and cyclical patterns
+- Model failure scenarios and redundancy needs
+
+**Phase 4: Implementation and Optimization**
+- Execute capacity upgrades based on thresholds
+- Implement monitoring automation
+- Continuously refine thresholds based on performance data
+
+## 4.0 Monitoring Parameters and Metrics
+
+### 4.1 Primary Capacity Metrics
+
+#### 4.1.1 Connection-Level Metrics
+- **ConnectionBpsEgress**: Outbound bandwidth utilization from AWS
+- **ConnectionBpsIngress**: Inbound bandwidth utilization to AWS  
+- **ConnectionPpsEgress**: Outbound packet rate
+- **ConnectionPpsIngress**: Inbound packet rate
+- **ConnectionState**: Physical connection status
+
+#### 4.1.2 Virtual Interface Metrics
+- **VirtualInterfaceBpsEgress**: Per-VIF outbound utilization
+- **VirtualInterfaceBpsIngress**: Per-VIF inbound utilization  
+- **VirtualInterfacePpsEgress**: Per-VIF outbound packet rate
+- **VirtualInterfacePpsIngress**: Per-VIF inbound packet rate
+
+#### 4.1.3 Physical Layer Metrics
+- **ConnectionCRCErrorCount**: Physical layer error indication
+- **ConnectionLightLevelTx**: Transmit optical power (fiber connections)
+- **ConnectionLightLevelRx**: Receive optical power (fiber connections)
+
+### 4.2 Secondary Performance Metrics
+
+#### 4.2.1 Latency and Quality Metrics
+- **Round-trip latency**: End-to-end network delay
+- **Packet loss percentage**: Network quality indicator
+- **Jitter**: Latency variation measurement
+
+#### 4.2.2 Availability Metrics
+- **Connection uptime**: Physical link availability
+- **BGP session stability**: Routing protocol health
+- **Failover times**: Redundancy effectiveness
+
+## 5.0 Capacity Planning Thresholds and Triggers
+
+### 5.1 Utilization Threshold Matrix
+
+| **Connection Speed** | **Warning Threshold** | **Critical Threshold** | **Upgrade Trigger** |
+|---------------------|----------------------|----------------------|-------------------|
+| 1 Gbps              | 60%                  | 80%                  | 70% for 20% of time over 7 days |
+| 10 Gbps             | 65%                  | 80%                  | 75% for 15% of time over 7 days |
+| 100 Gbps            | 70%                  | 85%                  | 80% for 10% of time over 7 days |
+| 400 Gbps            | 70%                  | 85%                  | 80% for 10% of time over 7 days |
+
+### 5.2 Threshold Rationale
+
+#### 5.2.1 80% Critical Threshold Justification
+Based on queueing theory and industry best practices, network utilization above 80% results in exponential growth in latency and packet queuing. This threshold provides:
+- Sufficient headroom for traffic bursts
+- Tolerance for BGP convergence during failover scenarios
+- Buffer capacity during maintenance windows
+
+#### 5.2.2 Time-Based Triggers
+The "X% for Y% of time" methodology prevents false alarms from temporary spikes while ensuring persistent capacity issues trigger upgrades. The percentage of time varies by connection speed to account for:
+- Higher speeds having more burst tolerance
+- Cost implications of unnecessary upgrades
+- Lead times for capacity procurement
+
+### 5.3 Special Consideration Thresholds
+
+#### 5.3.1 Redundancy Scenarios
+- **Single Connection**: Apply standard thresholds
+- **Dual Connection**: Apply thresholds assuming 50% traffic shift during failover
+- **Multi-Connection**: Model N-1 redundancy scenarios
+
+#### 5.3.2 Application-Specific Thresholds
+- **Real-time Applications**: Lower thresholds (60% warning, 70% critical)
+- **Batch Processing**: Higher tolerance acceptable (75% warning, 90% critical)
+- **Mission-Critical Systems**: Enhanced monitoring with 50% warning threshold
+
+## 6.0 Operational Procedures
+
+### 6.1 Daily Monitoring Procedures
+
+#### 6.1.1 Morning Health Check (Daily - 09:00 UTC)
+**Objective**: Verify Direct Connect health and identify overnight issues
+
+**Procedure**:
+1. Access CloudWatch Direct Connect dashboard
+2. Review connection state for all DX connections
+3. Check for any CRC errors in past 24 hours
+4. Verify BGP session status in AWS console
+5. Review utilization trends from previous day
+6. Document any anomalies in operations log
+
+**Expected Duration**: 15 minutes
+**Escalation**: If any connection shows errors or unusual utilization patterns
+
+#### 6.1.2 Peak Hours Monitoring (Business Hours)
+**Objective**: Monitor utilization during peak traffic periods
+
+**Procedure**:
+1. Monitor real-time utilization every 2 hours during business hours
+2. Check for threshold violations using CloudWatch alarms
+3. Correlate high utilization with application deployment schedules
+4. Verify redundant path availability if primary exceeds warning threshold
+
+**Expected Duration**: 5 minutes per check
+**Escalation**: If utilization exceeds warning thresholds consistently
+
+### 6.2 Weekly Analysis Procedures
+
+#### 6.2.1 Capacity Trend Analysis (Weekly - Friday)
+**Objective**: Identify trends and predict future capacity needs
+
+**Procedure**:
+1. Generate weekly utilization reports for all connections
+2. Calculate 95th percentile utilization for each connection
+3. Compare against previous week and month trends  
+4. Identify connections approaching warning thresholds
+5. Update capacity forecast model with new data
+6. Create executive summary of capacity status
+
+**Expected Duration**: 45 minutes
+**Deliverables**: Weekly capacity report, trend analysis
+
+#### 6.2.2 Threshold Compliance Review
+**Objective**: Ensure monitoring thresholds align with actual performance
+
+**Procedure**:
+1. Review all threshold violations from previous week
+2. Analyze false positive rate of alerts
+3. Correlate utilization spikes with application behavior
+4. Adjust thresholds if necessary based on performance data
+5. Update threshold documentation
+
+**Expected Duration**: 30 minutes
+**Output**: Threshold adjustment recommendations
+
+### 6.3 Monthly Planning Procedures
+
+#### 6.3.1 Capacity Planning Review (Monthly)
+**Objective**: Long-term capacity planning and budget forecasting
+
+**Procedure**:
+1. Analyze monthly utilization trends across all connections
+2. Project capacity needs for next 6-12 months
+3. Correlate capacity requirements with business growth plans
+4. Identify potential capacity bottlenecks
+5. Develop capacity acquisition timeline
+6. Prepare budget estimates for capacity upgrades
+
+**Expected Duration**: 2 hours
+**Deliverables**: Monthly capacity plan, budget forecast
+
+#### 6.3.2 Redundancy Testing
+**Objective**: Validate failover capacity and procedures
+
+**Procedure**:
+1. Schedule maintenance window for redundancy testing
+2. Coordinate with application teams for impact assessment
+3. Perform controlled failover testing
+4. Measure utilization during failover scenarios
+5. Validate that remaining connections can handle full load
+6. Document performance during redundancy scenarios
+
+**Expected Duration**: 4 hours (including planning)
+**Output**: Redundancy validation report
+
+### 6.4 Incident Response Procedures
+
+#### 6.4.1 Capacity Threshold Violation Response
+**Trigger**: Critical threshold (80%+) utilization sustained for 15 minutes
+
+**Immediate Actions** (Within 15 minutes):
+1. Acknowledge CloudWatch alarm
+2. Verify threshold violation in multiple monitoring systems
+3. Check for scheduled maintenance or known traffic events
+4. Assess impact on application performance
+5. Notify stakeholders of potential capacity issue
+
+**Short-term Actions** (Within 2 hours):
+1. Analyze traffic patterns causing high utilization
+2. Identify specific applications or traffic sources
+3. Coordinate with application teams for traffic optimization
+4. Implement temporary traffic shaping if available
+5. Escalate to network engineering for immediate capacity options
+
+**Long-term Actions** (Within 24-48 hours):
+1. Initiate capacity upgrade process
+2. Contact AWS support for expedited capacity increase
+3. Coordinate with Direct Connect partners if necessary
+4. Schedule capacity upgrade implementation
+5. Update capacity planning model based on incident
+
+#### 6.4.2 Connection Failure Response
+**Trigger**: Direct Connect connection state change to "Down"
+
+**Immediate Actions** (Within 5 minutes):
+1. Verify connection status in AWS console
+2. Check redundant connection capacity and status
+3. Assess traffic load on remaining connections
+4. Implement emergency traffic distribution if needed
+5. Contact AWS Support and Direct Connect partner
+
+**Capacity Assessment**:
+1. Calculate utilization on remaining connections
+2. Determine if remaining capacity can handle full load
+3. Identify applications that may be impacted
+4. Implement traffic prioritization if capacity is limited
+5. Coordinate with application teams for load reduction
+
+## 7.0 Implementation Guidelines
+
+### 7.1 Monitoring Infrastructure Setup
+
+#### 7.1.1 CloudWatch Configuration
+**Basic Monitoring Setup**:
+```yaml
+# CloudWatch Alarms for Direct Connect Monitoring
+DirectConnectUtilizationAlarm:
+  Type: AWS::CloudWatch::Alarm
+  Properties:
+    AlarmDescription: "Direct Connect utilization exceeds 80%"
+    MetricName: ConnectionBpsEgress
+    Namespace: AWS/DX
+    Statistic: Average
+    Period: 300
+    EvaluationPeriods: 3
+    Threshold: 800000000  # 80% of 1Gbps in bps
+    ComparisonOperator: GreaterThanThreshold
+    TreatMissingData: breaching
+```
+
+**Advanced Anomaly Detection**:
+```yaml
+DirectConnectAnomalyDetector:
+  Type: AWS::CloudWatch::AnomalyDetector
+  Properties:
+    MetricName: ConnectionBpsEgress
+    Namespace: AWS/DX
+    Stat: Average
+    Dimensions:
+      - Name: ConnectionId
+        Value: !Ref DirectConnectConnection
+```
+
+#### 7.1.2 Custom Metrics Implementation
+**Utilization Percentage Calculation**:
+```python
+# Calculate utilization percentage using CloudWatch Math
+import boto3
+import json
+
+def calculate_utilization_percentage(connection_id, connection_speed_bps):
+    """
+    Calculate Direct Connect utilization percentage
+    connection_speed_bps: Connection speed in bits per second
+    """
+    cloudwatch = boto3.client('cloudwatch')
+    
+    # Create metric math expression
+    metric_math = {
+        'Id': 'utilization_percent',
+        'Expression': f'(m1 / {connection_speed_bps}) * 100',
+        'Label': 'Utilization Percentage'
+    }
+    
+    metric_data = {
+        'Id': 'm1',
+        'MetricStat': {
+            'Metric': {
+                'Namespace': 'AWS/DX',
+                'MetricName': 'ConnectionBpsEgress',
+                'Dimensions': [
+                    {
+                        'Name': 'ConnectionId',
+                        'Value': connection_id
+                    }
+                ]
+            },
+            'Period': 300,
+            'Stat': 'Average'
+        }
+    }
+    
+    return [metric_math, metric_data]
+```
+
+### 7.2 Automation Framework
+
+#### 7.2.1 Automated Threshold Monitoring
+**Lambda Function for Dynamic Thresholds**:
+```python
+import boto3
+import json
+from datetime import datetime, timedelta
+
+def lambda_handler(event, context):
+    """
+    Automated threshold adjustment based on traffic patterns
+    """
+    cloudwatch = boto3.client('cloudwatch')
+    dx = boto3.client('directconnect')
+    
+    # Get all Direct Connect connections
+    connections = dx.describe_connections()
+    
+    for connection in connections['connections']:
+        connection_id = connection['connectionId']
+        bandwidth = connection['bandwidth']
+        
+        # Calculate dynamic thresholds based on historical data
+        historical_data = get_historical_utilization(connection_id)
+        dynamic_threshold = calculate_dynamic_threshold(historical_data, bandwidth)
+        
+        # Update CloudWatch alarm threshold
+        update_alarm_threshold(connection_id, dynamic_threshold)
+    
+    return {
+        'statusCode': 200,
+        'body': json.dumps('Thresholds updated successfully')
+    }
+
+def get_historical_utilization(connection_id, days=30):
+    """Get historical utilization data for trend analysis"""
+    cloudwatch = boto3.client('cloudwatch')
+    
+    end_time = datetime.utcnow()
+    start_time = end_time - timedelta(days=days)
+    
+    response = cloudwatch.get_metric_statistics(
+        Namespace='AWS/DX',
+        MetricName='ConnectionBpsEgress',
+        Dimensions=[
+            {
+                'Name': 'ConnectionId',
+                'Value': connection_id
+            }
+        ],
+        StartTime=start_time,
+        EndTime=end_time,
+        Period=3600,  # 1 hour intervals
+        Statistics=['Average', 'Maximum']
+    )
+    
+    return response['Datapoints']
+
+def calculate_dynamic_threshold(historical_data, bandwidth):
+    """Calculate dynamic threshold based on traffic patterns"""
+    if not historical_data:
+        return 0.8  # Default to 80%
+    
+    # Calculate 95th percentile of utilization
+    utilization_values = []
+    bandwidth_bps = parse_bandwidth_to_bps(bandwidth)
+    
+    for datapoint in historical_data:
+        utilization = datapoint['Average'] / bandwidth_bps
+        utilization_values.append(utilization)
+    
+    utilization_values.sort()
+    percentile_95 = utilization_values[int(len(utilization_values) * 0.95)]
+    
+    # Set threshold at 95th percentile + 10% buffer
+    dynamic_threshold = min(percentile_95 * 1.1, 0.85)  # Cap at 85%
+    
+    return dynamic_threshold
+```
+
+#### 7.2.2 Capacity Upgrade Automation
+**Systems Manager Runbook for Capacity Upgrades**:
+```yaml
+# AWS Systems Manager Document for capacity upgrade process
+schemaVersion: '0.3'
+description: 'Automated Direct Connect capacity upgrade process'
+assumeRole: '{{ AutomationAssumeRole }}'
+parameters:
+  ConnectionId:
+    type: String
+    description: 'Direct Connect Connection ID'
+  NewBandwidth:
+    type: String
+    description: 'New bandwidth (e.g., 10Gbps)'
+    allowedValues:
+      - '1Gbps'
+      - '10Gbps'
+      - '100Gbps'
+      - '400Gbps'
+  
+mainSteps:
+  - name: 'ValidateCurrentUtilization'
+    action: 'aws:executeScript'
+    inputs:
+      Runtime: 'python3.8'
+      Handler: 'validate_utilization'
+      Script: |
+        import boto3
+        def validate_utilization(events, context):
+            # Validate that upgrade is necessary based on utilization
+            cloudwatch = boto3.client('cloudwatch')
+            # Implementation here
+            return {'status': 'validated'}
+  
+  - name: 'CheckRedundancy'
+    action: 'aws:executeScript'
+    inputs:
+      Runtime: 'python3.8'
+      Handler: 'check_redundancy'
+      Script: |
+        def check_redundancy(events, context):
+            # Verify redundant connections can handle traffic
+            # Implementation here
+            return {'redundancy_status': 'adequate'}
+  
+  - name: 'SubmitCapacityRequest'
+    action: 'aws:executeScript'
+    inputs:
+      Runtime: 'python3.8'
+      Handler: 'submit_request'
+      Script: |
+        def submit_request(events, context):
+            # Submit capacity upgrade request via AWS API
+            # Implementation here
+            return {'request_id': 'DX-REQ-12345'}
+```
+
+### 7.3 Dashboard and Reporting Configuration
+
+#### 7.3.1 CloudWatch Dashboard Setup
+**Comprehensive Monitoring Dashboard**:
+```json
+{
+  "widgets": [
+    {
+      "type": "metric",
+      "properties": {
+        "metrics": [
+          [ "AWS/DX", "ConnectionBpsEgress", "ConnectionId", "dxcon-xxxxxxxxx" ],
+          [ ".", "ConnectionBpsIngress", ".", "." ]
+        ],
+        "period": 300,
+        "stat": "Average",
+        "region": "us-east-1",
+        "title": "Direct Connect Bandwidth Utilization",
+        "yAxis": {
+          "left": {
+            "min": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "properties": {
+        "metrics": [
+          [ "AWS/DX", "VirtualInterfaceBpsEgress", "VirtualInterfaceId", "dxvif-xxxxxxxxx" ],
+          [ ".", "VirtualInterfaceBpsIngress", ".", "." ]
+        ],
+        "period": 300,
+        "stat": "Average",
+        "region": "us-east-1",
+        "title": "Virtual Interface Utilization"
+      }
+    }
+  ]
+}
+```
+
+#### 7.3.2 Automated Reporting
+**Weekly Capacity Report Generation**:
+```python
+import boto3
+import pandas as pd
+from datetime import datetime, timedelta
+import matplotlib.pyplot as plt
+
+class DirectConnectReporter:
+    def __init__(self):
+        self.cloudwatch = boto3.client('cloudwatch')
+        self.dx = boto3.client('directconnect')
+    
+    def generate_weekly_report(self):
+        """Generate comprehensive weekly capacity report"""
+        connections = self.dx.describe_connections()
+        report_data = []
+        
+        for connection in connections['connections']:
+            connection_data = self.analyze_connection(connection)
+            report_data.append(connection_data)
+        
+        # Generate Excel report
+        df = pd.DataFrame(report_data)
+        df.to_excel('dx_capacity_report.xlsx', index=False)
+        
+        # Generate visualizations
+        self.create_utilization_charts(report_data)
+        
+        return report_data
+    
+    def analyze_connection(self, connection):
+        """Analyze individual connection utilization"""
+        connection_id = connection['connectionId']
+        bandwidth = connection['bandwidth']
+        
+        # Get week's utilization data
+        utilization_data = self.get_utilization_metrics(connection_id)
+        
+        # Calculate key metrics
+        avg_utilization = sum(d['Average'] for d in utilization_data) / len(utilization_data)
+        max_utilization = max(d['Maximum'] for d in utilization_data)
+        
+        bandwidth_bps = self.parse_bandwidth_to_bps(bandwidth)
+        avg_utilization_pct = (avg_utilization / bandwidth_bps) * 100
+        max_utilization_pct = (max_utilization / bandwidth_bps) * 100
+        
+        return {
+            'ConnectionId': connection_id,
+            'Bandwidth': bandwidth,
+            'AvgUtilization%': round(avg_utilization_pct, 2),
+            'MaxUtilization%': round(max_utilization_pct, 2),
+            'Status': self.get_status(max_utilization_pct),
+            'Recommendation': self.get_recommendation(max_utilization_pct)
+        }
+```
+
+## 8.0 Cost Optimization Framework
+
+### 8.1 Right-Sizing Methodology
+
+#### 8.1.1 Under-Utilization Analysis
+**Identification Criteria**:
+- Average utilization below 30% for 30 consecutive days
+- No traffic spikes above 50% in past 90 days
+- Redundant connection available for failover
+
+**Cost Optimization Actions**:
+1. Evaluate downgrade to lower bandwidth tier
+2. Consider consolidating traffic to fewer connections
+3. Analyze cost savings vs. risk of capacity constraints
+
+#### 8.1.2 Over-Provisioning Detection
+**Warning Indicators**:
+- Consistent utilization below 25%
+- Multiple redundant connections all under-utilized
+- High monthly costs relative to actual usage
+
+**Optimization Procedures**:
+1. Model traffic consolidation scenarios
+2. Evaluate impact of connection reduction
+3. Implement phased approach to capacity optimization
+
+### 8.2 Business Impact Assessment
+
+#### 8.2.1 Cost-Benefit Analysis Framework
+**Upgrade Decision Matrix**:
+```
+| Utilization Level | Business Impact | Action Required | Timeline |
+|------------------|----------------|----------------|----------|
+| < 30%            | Over-provisioned| Evaluate downgrade | 90 days |
+| 30-60%           | Optimal        | Monitor         | Ongoing |
+| 60-80%           | Plan upgrade   | Prepare for expansion | 30 days |
+| > 80%            | Immediate risk | Urgent upgrade  | 7 days |
+```
+
+## 9.0 Security and Compliance Considerations
+
+### 9.1 Monitoring Access Controls
+- **Principle of Least Privilege**: Grant minimum necessary permissions
+- **Role-Based Access**: Separate roles for monitoring, analysis, and capacity management
+- **Audit Logging**: Log all capacity planning decisions and actions
+
+### 9.2 Data Protection
+- **Encryption**: All monitoring data encrypted in transit and at rest
+- **Data Retention**: Align with organizational data retention policies
+- **Privacy**: Ensure monitoring doesn't capture sensitive payload data
+
+## 10.0 Testing and Validation
+
+### 10.1 Runbook Testing Schedule
+- **Monthly**: Test monitoring alert mechanisms
+- **Quarterly**: Validate threshold accuracy and escalation procedures  
+- **Semi-Annually**: Perform full capacity planning simulation
+- **Annually**: Review and update entire runbook
+
+### 10.2 Validation Criteria
+- **Response Time**: All procedures completed within specified timeframes
+- **Accuracy**: Monitoring data validated against independent sources
+- **Effectiveness**: Capacity issues prevented through proactive monitoring
+
+## 11.0 Escalation Matrix
+
+### 11.1 Internal Escalation Path
+1. **Level 1**: Network Operations Center (NOC) - Initial response
+2. **Level 2**: Senior Network Engineer - Technical analysis
+3. **Level 3**: Network Architecture Team - Design changes
+4. **Level 4**: IT Management - Budget approval and strategic decisions
+
+### 11.2 External Escalation
+1. **AWS Support**: Technical issues with Direct Connect service
+2. **Direct Connect Partner**: Physical connection and cross-connect issues
+3. **ISP/Carrier**: Last-mile connectivity problems
+
+## 12.0 Documentation and Knowledge Management
+
+### 12.1 Document Maintenance
+- **Version Control**: All runbook changes tracked in version control system
+- **Change Management**: Formal approval process for significant updates
+- **Distribution**: Ensure all stakeholders have access to current version
+
+### 12.2 Knowledge Transfer
+- **Training Program**: Regular training for operations staff
+- **Documentation Review**: Quarterly review of all procedures
+- **Lessons Learned**: Capture insights from capacity planning incidents
+
+## 13.0 Appendices
+
+### Appendix A: Connection Speed Reference
+| **Speed** | **Bits per Second** | **Bytes per Second** | **Monitoring Interval** |
+|-----------|-------------------|-------------------|----------------------|
+| 1 Gbps    | 1,000,000,000     | 125,000,000       | 5 minutes           |
+| 10 Gbps   | 10,000,000,000    | 1,250,000,000     | 5 minutes           |
+| 100 Gbps  | 100,000,000,000   | 12,500,000,000    | 1 minute            |
+| 400 Gbps  | 400,000,000,000   | 50,000,000,000    | 1 minute            |
+
+### Appendix B: CloudWatch Metrics Reference
+- **ConnectionBpsEgress**: Bits transmitted per second from AWS
+- **ConnectionBpsIngress**: Bits received per second by AWS  
+- **VirtualInterfaceBpsEgress**: Per-VIF bits transmitted from AWS
+- **VirtualInterfaceBpsIngress**: Per-VIF bits received by AWS
+- **ConnectionState**: Physical connection status (UP/DOWN)
+- **ConnectionCRCErrorCount**: Physical layer error count
+
+### Appendix C: Emergency Contact Information
+- **AWS Enterprise Support**: [Support Case Portal]
+- **Direct Connect Partner Support**: [Partner-specific contacts]
+- **Internal Escalation**: [Internal contact directory]
+
+---
+
+**Document End**
+
+*This runbook should be reviewed quarterly and updated as AWS Direct Connect capabilities evolve and organizational requirements change.*
