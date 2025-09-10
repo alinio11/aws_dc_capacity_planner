@@ -1,0 +1,532 @@
+AWS Direct Connect Capacity Planning Operational Runbook
+Document Control
+
+Version: 2.0
+Last Updated: 2025-01-XX
+Document Owner: Cloud Infrastructure Team
+Review Cycle: Quarterly
+Approval Status: Draft
+Major Change: Updated for Active-Active Redundancy Architecture
+
+
+⚠️ CRITICAL ARCHITECTURE NOTICE ⚠️
+This infrastructure uses ALL ACTIVE-ACTIVE redundancy configurations:
+
+2x 1Gbps connections (active-active)
+3x 10Gbps connections (active-active)
+2x 10Gbps regional connections (active-active)
+2x 10Gbps backup connections (active-active)
+
+Traditional capacity thresholds DO NOT APPLY. All thresholds must account for N-1 redundancy.
+
+1.0 Purpose
+This operational runbook defines the comprehensive capacity planning methodology for AWS Direct Connect connections in an active-active redundancy architecture. The runbook establishes N-1 safe monitoring parameters, redundancy-aware threshold definitions, temporary spike management procedures, and cost-optimized escalation guidelines to maintain service level agreements while preventing both over-provisioning and capacity constraints during failover scenarios.
+2.0 Subject(s) and Scope
+2.1 Subject Matter
+
+AWS Direct Connect dedicated and hosted connections in active-active configurations
+Redundancy group capacity management
+N-1 failover capacity planning
+Virtual Interface (VIF) capacity management
+Cross-region Direct Connect Gateway utilization
+Hybrid network performance optimization
+
+2.2 Scope
+This runbook covers:
+
+Active-active redundancy group monitoring (1Gbps to 10Gbps)
+N-1 capacity planning and failover scenarios
+Temporary spike tolerance and management
+Virtual interface capacity planning
+Multi-account Direct Connect scenarios
+Integration with AWS Transit Gateway and VPC connectivity
+
+2.3 Out of Scope
+
+AWS Site-to-Site VPN capacity planning
+Third-party network provider capacity management
+On-premises router and switch optimization
+Standalone (non-redundant) connection management
+
+3.0 Capacity Planning Framework
+3.1 Strategic Objectives
+
+N-1 Redundancy: Ensure full capacity during any single connection failure
+Performance: Maintain sub-10ms latency for critical workloads
+Availability: Ensure 99.9% uptime through proper capacity provisioning
+Cost Optimization: Balance upgrade costs with temporary spike tolerance
+Scalability: Proactively plan for growth while avoiding premature upgrades
+
+3.2 Active-Active Capacity Planning Methodology
+Phase 1: Redundancy Group Definition
+
+Identify all active-active connection pairs and groups
+Calculate N-1 capacity for each group
+Establish safe operating thresholds based on failover capability
+
+Phase 2: Pattern Recognition
+
+Distinguish between temporary spikes and sustained growth
+Identify recurring patterns (daily, weekly, monthly)
+Document known temporary events (migrations, batch jobs)
+
+Phase 3: Risk-Based Threshold Application
+
+Apply N-1 safe thresholds for normal operation
+Define temporary spike tolerance limits
+Establish clear upgrade triggers based on sustained patterns
+
+Phase 4: Cost-Optimized Implementation
+
+Evaluate upgrade costs vs. temporary risk acceptance
+Implement enhanced monitoring during spike periods
+Execute upgrades only when sustained growth confirmed
+
+4.0 Monitoring Parameters and Metrics
+4.1 Primary Capacity Metrics
+4.1.1 Redundancy Group Metrics
+
+Group Utilization: Combined traffic across all connections in group
+N-1 Capacity: Available capacity if largest connection fails
+Failover Risk: Projected utilization after connection failure
+Group Health Status: Overall redundancy group health assessment
+
+4.1.2 Connection-Level Metrics
+
+ConnectionBpsEgress: Outbound bandwidth utilization from AWS
+ConnectionBpsIngress: Inbound bandwidth utilization to AWS
+ConnectionPpsEgress: Outbound packet rate
+ConnectionPpsIngress: Inbound packet rate
+ConnectionState: Physical connection status
+
+4.1.3 Virtual Interface Metrics
+
+VirtualInterfaceBpsEgress: Per-VIF outbound utilization
+VirtualInterfaceBpsIngress: Per-VIF inbound utilization
+VirtualInterfacePpsEgress: Per-VIF outbound packet rate
+VirtualInterfacePpsIngress: Per-VIF inbound packet rate
+
+4.2 Pattern Analysis Metrics
+4.2.1 Spike Pattern Metrics
+
+Spike Duration: Consecutive time above threshold
+Spike Frequency: Number of spikes in evaluation window
+Spike Predictability: Whether spike follows known pattern
+Recovery Time: Time to return to normal after spike
+
+4.2.2 Growth Trend Metrics
+
+7-Day Average: Short-term utilization trend
+14-Day Average: Medium-term growth indicator
+30-Day Pattern: Long-term pattern identification
+Growth Acceleration: Rate of change in utilization
+
+5.0 Redundancy-Aware Capacity Planning Thresholds
+5.1 Active-Active Utilization Thresholds
+5.1.1 N-1 Safe Operating Thresholds
+Redundancy GroupConfigurationN-1 CapacitySafe MaxWarningCritical2x 1Gbps PrimaryActive-Active1Gbps50%45%50%3x 10Gbps PrimaryActive-Active20Gbps66%60%66%2x 10Gbps RegionalActive-Active10Gbps50%45%50%2x 10Gbps BackupActive-Active10Gbps50%45%50%
+Critical Note: These thresholds ensure failover capability. Exceeding them accepts risk of service degradation during connection failure.
+5.1.2 Temporary Spike Tolerance Limits
+GroupSafe MaxTemporary Spike LimitMax DurationMonitoring2x 1Gbps50%70%7 days1-minute intervals3x 10Gbps66%75%7 days1-minute intervals2x 10Gbps Regional50%70%7 days1-minute intervals2x 10Gbps Backup50%70%14 days5-minute intervals
+5.1.3 Upgrade Decision Matrix
+Pattern TypeCharacteristicsEvaluation WindowActionTemporary SpikeAbove safe max for <7 consecutive daysDaily monitoringAccept risk with mitigationRecurring PatternPredictable spikes (weekly/monthly)30 daysPlan around patternSustained GrowthAbove safe max >50% of time14 daysInitiate upgradeCritical Spike>80% utilization any timeImmediateEmergency response
+5.2 Evaluation Window Justification
+5.2.1 Redundancy-Based Windows
+
+2x 1Gbps (2-day evaluation): Limited failover capacity requires rapid response
+3x 10Gbps (3-day evaluation): Slightly more buffer with three connections
+2x 10Gbps Regional (3-day evaluation): Critical regional connectivity
+2x 10Gbps Backup (5-day evaluation): Normally idle, can tolerate longer evaluation
+7-day universal window: ELIMINATED - inappropriate for active-active
+
+5.2.2 Pattern-Based Adjustments
+
+Known temporary events: Extended monitoring without upgrade trigger
+Recurring patterns: Capacity planning around predictable spikes
+Unknown spikes: Shortened evaluation window for safety
+
+5.3 Failover Scenario Calculations
+5.3.1 N-1 Capacity Examples
+2x 1Gbps Active-Active Failure Scenario:
+Normal Operation: 2 × 1Gbps = 2Gbps total
+At 50% utilization: 1Gbps total traffic
+Single Link Failure: 1Gbps traffic on 1Gbps link = 100% (sustainable)
+At 70% utilization: 1.4Gbps total traffic
+Single Link Failure: 1.4Gbps on 1Gbps link = 140% (FAILURE)
+3x 10Gbps Active-Active Failure Scenario:
+Normal Operation: 3 × 10Gbps = 30Gbps total
+At 66% utilization: 20Gbps total traffic
+Single Link Failure: 20Gbps on 2 × 10Gbps = 100% (sustainable)
+At 75% utilization: 22.5Gbps total traffic
+Single Link Failure: 22.5Gbps on 20Gbps = 112.5% (FAILURE)
+5.4 Cost-Aware Spike Management
+5.4.1 Temporary Spike Cost Analysis
+Scenario: Monthly 5-day spike to 55% on 2x10Gbps connections
+- Upgrade cost: $3,000/month for 2x25Gbps
+- Annual upgrade cost: $36,000
+- Risk exposure: 60 days/year (16.4% of time)
+- Decision: Accept temporary risk with enhanced monitoring
+5.4.2 Upgrade Cost Justification Triggers
+
+Sustained growth requiring upgrade: Justified
+Recurring pattern >20% of time: Evaluate upgrade
+Temporary known events <10% of time: Accept risk
+Unknown recurring spikes: Investigate before upgrade
+
+6.0 Operational Procedures
+6.1 Redundancy Group Monitoring Procedures
+6.1.1 Daily Group Health Review (Daily - Start of Operations)
+Objective: Review redundancy group status and N-1 capacity availability
+Procedure:
+
+Access CloudWatch Direct Connect dashboard
+Review each redundancy group's combined utilization
+Calculate current N-1 failover risk for each group
+Verify all connections in each group are active
+Check for any overnight spike alerts
+
+Expected Duration: 10 minutes
+Escalation: If any group exceeds safe thresholds or connection down
+6.1.2 Spike Pattern Analysis (Daily during spikes)
+Objective: Determine if current spike is temporary or sustained
+Procedure:
+
+Identify spike start time and current duration
+Check for correlation with known events (migrations, batch jobs)
+Review historical patterns for similar spikes
+Document spike characteristics and expected end time
+Implement enhanced monitoring if spike expected to continue
+
+Expected Duration: 15 minutes
+Deliverable: Spike classification (temporary/sustained/unknown)
+6.2 Weekly Capacity Management Procedures
+6.2.1 Pattern Recognition Review (Weekly - Monday)
+Objective: Identify recurring patterns and distinguish from growth
+Procedure:
+
+Query last 30 days of utilization data from DynamoDB
+Identify weekly recurring patterns (e.g., backup windows)
+Calculate baseline vs. spike utilization percentages
+Document any new patterns discovered
+Update spike expectation calendar
+
+Expected Duration: 30 minutes
+Deliverable: Updated pattern documentation
+6.2.2 Evaluation Window Assessment (Weekly - Friday)
+Objective: Determine if upgrade triggers have been met
+Procedure:
+
+Calculate percentage of time above safe thresholds:
+
+Last 7 days for temporary spike assessment
+Last 14 days for upgrade trigger evaluation
+Last 30 days for pattern analysis
+
+
+For each redundancy group, determine:
+
+Is this temporary? (will resolve within 7 days)
+Is this recurring? (predictable pattern)
+Is this growth? (sustained increase)
+
+
+Generate upgrade recommendations based on findings
+
+Expected Duration: 45 minutes
+Deliverable: Weekly capacity status report with upgrade recommendations
+6.3 Monthly Strategic Planning Procedures
+6.3.1 Cost-Benefit Analysis Review (Monthly - First Friday)
+Objective: Evaluate upgrade needs against cost and risk factors
+Procedure:
+
+Review all redundancy groups approaching upgrade triggers
+Calculate upgrade costs for each group
+Assess temporary spike frequency and duration
+Evaluate business impact of accepting temporary risk
+Generate prioritized upgrade plan based on:
+
+Sustained growth patterns (highest priority)
+Frequency of threshold violations
+Cost of upgrade vs. risk exposure
+Lead time for capacity provisioning
+
+
+
+Expected Duration: 90 minutes
+Deliverable: Monthly capacity plan with cost analysis
+6.4 Incident Response Procedures
+6.4.1 N-1 Safe Threshold Violation - Temporary Spike Response
+Trigger: Group utilization exceeds safe threshold but identified as temporary
+Day 1-2 Actions:
+
+Confirm spike source and expected duration
+Calculate failover risk (what happens if connection fails now)
+Implement enhanced monitoring (1-minute intervals)
+Prepare traffic throttling procedures
+Document risk acceptance with expiry date
+
+Day 3-5 Monitoring:
+
+Daily utilization trend review
+Verify spike following expected pattern
+Update risk assessment
+If deviation from expected: Escalate immediately
+
+Day 6-7 Decision Point:
+
+If spike continuing: Initiate upgrade process
+If spike declining: Continue monitoring
+Document lessons learned
+
+Post-Spike Actions:
+
+Analyze actual vs. expected duration
+Update pattern database
+Refine spike prediction models
+
+6.4.2 Sustained Growth Response
+Trigger: Utilization above safe threshold >50% of time over 14 days
+Immediate Actions (Within 4 hours):
+
+Confirm sustained growth pattern
+Calculate time to critical based on growth rate
+Initiate capacity upgrade request
+Identify interim risk mitigation options
+
+Short-term Actions (Within 48 hours):
+
+Submit formal upgrade request to AWS
+Obtain upgrade timeline (typically 4-6 weeks)
+Implement traffic optimization measures
+Increase monitoring frequency
+
+Long-term Actions (Until upgrade complete):
+
+Weekly progress updates on upgrade
+Daily capacity monitoring
+Maintain traffic optimization measures
+Plan upgrade implementation window
+
+6.4.3 Connection Failure in Redundancy Group
+Trigger: Connection state change in active-active group
+Immediate Actions (Within 5 minutes):
+
+Receive automated failure alert
+Calculate new utilization on remaining connections
+Determine if within N-1 capacity
+If over capacity: Implement emergency traffic management
+
+Capacity Assessment:
+Example: 1 of 3 10Gbps connections fails
+- Previous total load: 18Gbps (60% of 30Gbps)
+- New capacity: 20Gbps (2 connections)
+- New utilization: 18Gbps/20Gbps = 90%
+- Status: CRITICAL - Emergency traffic management required
+Recovery Actions:
+
+Coordinate connection restoration
+Monitor remaining connections closely
+Evaluate if temporary capacity upgrade needed
+Document incident and update runbook
+
+6.4.4 Critical Spike Response (>80% Utilization)
+Trigger: Any redundancy group exceeds 80% utilization
+Immediate Actions (Within 15 minutes):
+
+Identify traffic sources
+Calculate imminent failure risk
+Implement traffic prioritization
+Alert executive team
+
+Emergency Mitigation:
+
+Throttle non-critical applications
+Defer batch jobs and backups
+Contact AWS for emergency capacity options
+Prepare for potential service degradation
+
+6.5 Spike Tolerance Procedures
+6.5.1 Known Temporary Event Management
+Examples: Migrations, quarterly processing, disaster recovery tests
+Pre-Event Planning:
+
+Document expected utilization increase
+Define event duration and end criteria
+Obtain risk acceptance approval
+Schedule enhanced monitoring
+
+During Event:
+
+Monitor against expected profile
+Maintain 1-minute monitoring intervals
+Daily checkpoint reviews
+Immediate escalation if exceeding plan
+
+Post-Event:
+
+Verify return to normal
+Document actual vs. planned
+Update event database
+Refine future predictions
+
+6.5.2 Risk Acceptance Documentation
+Required for all temporary spike tolerances:
+Risk Acceptance Form:
+- Redundancy Group: [e.g., 2x10Gbps Regional]
+- Current Utilization: [e.g., 55%]
+- Safe Threshold: [e.g., 50%]
+- Expected Duration: [e.g., 5 days]
+- Spike Cause: [e.g., Quarter-end processing]
+- Failover Impact: [e.g., 110% utilization if connection fails]
+- Mitigation Plan: [Enhanced monitoring, traffic priorities ready]
+- Approval: [Manager/Director signature]
+- Expiry Date: [Date when normal thresholds resume]
+7.0 Implementation Guidelines
+7.1 Monitoring System Configuration
+7.1.1 Redundancy Group Setup
+The automated monitoring system (detailed in dx_implementation_guide_updated) implements:
+
+Automatic grouping of connections by redundancy relationship
+N-1 capacity calculations for each group
+Group-level alerting (not per connection)
+Pattern recognition algorithms
+
+7.1.2 Alert Configuration
+
+Safe Threshold Alerts: Warning level, ops team response
+Temporary Spike Alerts: Include duration and pattern analysis
+Sustained Growth Alerts: Trigger capacity planning process
+Critical Alerts: Page on-call, executive escalation
+
+7.1.3 Dashboard Configuration
+
+Group-level utilization views
+N-1 capacity availability metrics
+Spike duration tracking
+Pattern visualization (daily, weekly, monthly)
+
+7.2 Automation Framework
+7.2.1 Pattern Detection Automation
+The system automatically:
+
+Identifies recurring patterns
+Distinguishes spikes from growth
+Calculates upgrade trigger timings
+Generates cost-benefit analyses
+
+7.2.2 Capacity Planning Automation
+
+Automated weekly evaluation window calculations
+Spike tolerance tracking and expiry
+Upgrade recommendation generation
+Historical pattern database maintenance
+
+7.3 Reporting and Analytics
+7.3.1 Executive Reporting
+Monthly Executive Summary includes:
+
+Redundancy group health status
+Temporary spike frequency and duration
+Upgrade recommendations with cost analysis
+Risk exposure periods
+Capacity planning timeline
+
+7.3.2 Operational Reporting
+Weekly Operations Report includes:
+
+Current utilization by redundancy group
+Active spike tracking
+Pattern analysis results
+Evaluation window calculations
+Alert accuracy metrics
+
+8.0 Cost Optimization Framework
+8.1 Spike Tolerance vs. Upgrade Analysis
+8.1.1 Cost Calculation Framework
+Temporary Spike Cost Model:
+- Risk Period: X days per month
+- Upgrade Cost: $Y per month
+- Annual Risk Exposure: X * 12 days
+- Annual Upgrade Cost: $Y * 12
+- Decision: If (Risk Days < 36 AND Spike < 75%) then TOLERATE else UPGRADE
+8.1.2 Upgrade Deferral Criteria
+
+Spike duration <10% of time
+Spike magnitude <75% utilization
+Spike cause identified and controlled
+Mitigation procedures tested
+Risk acceptance documented
+
+8.2 Business Impact Assessment
+8.2.1 Failover Impact Matrix
+Current Utilization2-Connection Group3-Connection GroupBusiness Impact40%80% post-failure60% post-failureLow risk50%100% post-failure75% post-failure2-conn: High risk60%120% post-failure90% post-failure2-conn: Failure66%132% post-failure99% post-failureBoth: Critical
+9.0 Security and Compliance Considerations
+9.1 Risk Documentation Requirements
+
+All spike tolerances must be documented
+Risk acceptance requires management approval
+Temporary overrides limited to 7 days
+Audit trail of all threshold modifications
+
+9.2 Compliance Monitoring
+
+N-1 redundancy compliance tracking
+SLA impact assessment during spikes
+Regulatory reporting of capacity risks
+Documentation retention per policy
+
+10.0 Testing and Validation
+10.1 Redundancy Testing Schedule
+
+Monthly: Validate N-1 calculations
+Quarterly: Test failover scenarios
+Semi-Annually: Full redundancy group failure simulation
+Annually: Complete capacity planning exercise
+
+10.2 Spike Response Testing
+
+Monthly: Test enhanced monitoring activation
+Quarterly: Simulate temporary spike response
+Annually: Test emergency traffic management
+
+11.0 Escalation Matrix
+11.1 Redundancy-Aware Escalation
+ScenarioLevel 1 (NOC)Level 2 (Senior)Level 3 (Architecture)Level 4 (Executive)Safe threshold exceeded <2 daysMonitorInform--Safe threshold exceeded 3-5 daysInvestigatePlan responseInform-Safe threshold exceeded >5 daysEscalateLead responseDesign solutionApprove upgradeConnection failure in groupImmediateImmediateAs neededIf SLA impact>80% utilization any groupImmediateImmediateImmediateImmediate
+12.0 Documentation and Knowledge Management
+12.1 Pattern Database Maintenance
+
+Document all identified patterns
+Track spike predictions vs. actual
+Maintain event calendar
+Update pattern recognition rules
+
+12.2 Lessons Learned Process
+
+Post-spike reviews
+Pattern prediction accuracy
+Upgrade decision validation
+Risk acceptance outcomes
+
+13.0 Appendices
+Appendix A: N-1 Capacity Quick Reference
+ConfigurationTotal CapacityN-1 CapacitySafe Operating Load2×1Gbps2Gbps1Gbps1Gbps (50%)3×10Gbps30Gbps20Gbps20Gbps (66%)2×10Gbps20Gbps10Gbps10Gbps (50%)4×10Gbps40Gbps30Gbps30Gbps (75%)
+Appendix B: Spike Duration Decision Tree
+Is utilization above safe threshold?
+├─ No → Continue normal monitoring
+└─ Yes → Is cause identified?
+    ├─ No → Investigate immediately, prepare for upgrade
+    └─ Yes → Is it temporary (<7 days)?
+        ├─ No → Initiate upgrade process
+        └─ Yes → Is it <75% utilization?
+            ├─ No → Emergency response required
+            └─ Yes → Accept risk with enhanced monitoring
+Appendix C: Emergency Contact Information
+
+AWS Enterprise Support: [Support Case Portal]
+Direct Connect Partner Support: [Partner-specific contacts]
+Internal Escalation: [Internal contact directory]
+Executive Escalation: [CTO/VP Infrastructure contacts]
+
+
+Document End
+This runbook must be reviewed quarterly and updated based on pattern analysis and operational experience. All redundancy groups must maintain N-1 capacity capability as the primary operational requirement.
